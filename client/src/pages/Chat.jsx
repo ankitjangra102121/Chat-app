@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 
 import { useSocket } from "../hooks/useSocket";
 
@@ -9,10 +10,21 @@ import {
 
 import { getUsers } from "../services/user.service";
 
+const getStoredUser = () => {
+  try {
+    const storedUser = localStorage.getItem("user");
+
+    return storedUser ? JSON.parse(storedUser) : null;
+  } catch {
+    return null;
+  }
+};
+
 function Chat() {
   const socket = useSocket();
 
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = getStoredUser();
+  const userId = user?.id;
 
   const [users, setUsers] = useState([]);
 
@@ -40,6 +52,8 @@ function Chat() {
 
   // Socket connection
   useEffect(() => {
+    if (!userId) return;
+
     socket.connect();
 
     socket.on("connect", () => {
@@ -51,7 +65,7 @@ function Chat() {
     return () => {
       socket.off("connect");
     };
-  }, [socket, user.id]);
+  }, [socket, userId]);
 
   // Join selected conversation
   useEffect(() => {
@@ -124,6 +138,10 @@ function Chat() {
       console.log(error);
     }
   };
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <div className="h-screen bg-slate-950 flex">

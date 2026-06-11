@@ -7,9 +7,10 @@ import Register from "./pages/Register";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 import Chat from "./pages/Chat";
+import { getStoredToken } from "./services/authStorage";
 
 function App() {
-  const token = localStorage.getItem("token");
+  const token = getStoredToken();
 
   return (
     <BrowserRouter>
