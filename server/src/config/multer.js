@@ -1,6 +1,7 @@
 const multer = require('multer');
 
 const path = require('path');
+const fs = require('fs');
 
 const { v4: uuidv4 } = require('uuid');
 
@@ -22,6 +23,13 @@ const storage = multer.diskStorage({
       folder = 'uploads/audio';
     }
 
+    // Auto-create folder
+    if (!fs.existsSync(folder)) {
+      fs.mkdirSync(folder, {
+        recursive: true,
+      });
+    }
+
     cb(null, folder);
   },
 
@@ -39,7 +47,9 @@ const fileFilter = (req, file, cb) => {
     'application/pdf',
   ];
 
-  if (allowed.includes(file.mimetype)) {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const safeExtensions = ['.png', '.jpg', '.jpeg', '.mp4', '.mp3', '.pdf'];
+  if (allowed.includes(file.mimetype) && safeExtensions.includes(ext)) {
     cb(null, true);
   } else {
     cb(new Error('Invalid file type'));

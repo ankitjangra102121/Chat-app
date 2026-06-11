@@ -45,7 +45,7 @@ function Chat() {
     socket.on("connect", () => {
       console.log("Socket Connected:", socket.id);
 
-      socket.emit("register-user", user.id);
+      socket.emit("register-user");
     });
 
     return () => {
@@ -105,20 +105,24 @@ function Chat() {
   };
 
   // Send message
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!message.trim() || !selectedConversation) {
       return;
     }
 
-    socket.emit("send-message", {
-      conversationId: selectedConversation.id,
+    try {
+      socket.emit("send-message", {
+        conversationId: selectedConversation.id,
 
-      content: message,
+        content: message,
 
-      type: "TEXT",
-    });
+        type: "TEXT",
+      });
 
-    setMessage("");
+      setMessage("");
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   return (

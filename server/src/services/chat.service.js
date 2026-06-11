@@ -1,8 +1,34 @@
 const prisma = require('../config/db');
 
 const createConversation = async (userId, memberIds, type, name = null) => {
+  if (!Array.isArray(memberIds) || memberIds.length === 0) {
+    throw new Error('Invalid members');
+  }
+
+  if (!['PRIVATE', 'GROUP'].includes(type)) {
+    throw new Error('Invalid conversation type');
+  }
+
+  const uniqueMembers = [...new Set(memberIds)].filter((id) => id !== userId);
+
+  const users = await prisma.user.findMany({
+    where: {
+      id: {
+        in: uniqueMembers,
+      },
+    },
+
+    select: {
+      id: true,
+    },
+  });
+
+  if (users.length !== uniqueMembers.length) {
+    throw new Error('Invalid users');
+  }
+
   // Prevent duplicate private chat
-  if (type === 'PRIVATE' && memberIds.length === 1) {
+  if (type === 'PRIVATE' && uniqueMembers.length === 1) {
     const existingConversation = await prisma.conversation.findFirst({
       where: {
         type: 'PRIVATE',
@@ -10,14 +36,25 @@ const createConversation = async (userId, memberIds, type, name = null) => {
         members: {
           every: {
             userId: {
-              in: [userId, memberIds[0]],
+              in: [userId, uniqueMembers[0]],
             },
           },
         },
       },
 
       include: {
-        members: true,
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+                profilePic: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -37,7 +74,7 @@ const createConversation = async (userId, memberIds, type, name = null) => {
             userId,
           },
 
-          ...memberIds.map((id) => ({
+          ...uniqueMembers.map((id) => ({
             userId: id,
           })),
         ],
@@ -47,7 +84,14 @@ const createConversation = async (userId, memberIds, type, name = null) => {
     include: {
       members: {
         include: {
-          user: true,
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              profilePic: true,
+            },
+          },
         },
       },
     },
@@ -133,6 +177,17 @@ const sendMessage = async (
 
 const getMessages = async (userId, conversationId) => {
   try {
+    const member = await prisma.conversationMember.findFirst({
+      where: {
+        userId,
+        conversationId,
+      },
+    });
+
+    if (!member) {
+      throw new Error('Unauthorized access');
+    }
+
     const messages = await prisma.message.findMany({
       where: {
         conversationId,
@@ -160,12 +215,57 @@ const getMessages = async (userId, conversationId) => {
 };
 
 const markMessageRead = async (userId, messageId) => {
-  return prisma.messageRead.create({
-    data: {
-      userId,
-      messageId,
-    },
-  });
+  try {
+    const message = await prisma.message.findUnique({
+      where: {
+        id: messageId,
+      },
+
+      select: {
+        id: true,
+
+        conversationId: true,
+      },
+    });
+
+    if (!message) {
+      throw new Error('Message not found');
+    }
+
+    const member = await prisma.conversationMember.findFirst({
+      where: {
+        userId,
+
+        conversationId: message.conversationId,
+      },
+    });
+
+    if (!member) {
+      throw new Error('Unauthorized access');
+    }
+
+    const read = await prisma.messageRead.upsert({
+      where: {
+        messageId_userId: {
+          messageId,
+          userId,
+        },
+      },
+
+      update: {
+        readAt: new Date(),
+      },
+
+      create: {
+        messageId,
+        userId,
+      },
+    });
+
+    return read;
+  } catch (error) {
+    throw new Error(error.message);
+  }
 };
 
 const deleteMessage = async (userId, messageId) => {

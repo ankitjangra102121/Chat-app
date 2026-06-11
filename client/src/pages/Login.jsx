@@ -26,9 +26,6 @@ function Login() {
       const { data } = await api.post("/auth/login", formData);
 
       localStorage.setItem("token", data.accessToken);
-
-      localStorage.setItem("refreshToken", data.refreshToken);
-
       localStorage.setItem("user", JSON.stringify(data.user));
 
       toast.success("Login Successful 🚀");

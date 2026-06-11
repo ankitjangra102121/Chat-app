@@ -26,22 +26,24 @@ const initializeSocket = (io) => {
   });
 
   io.on('connection', (socket) => {
-    console.log(
-      `⚡ User connected:
-        ${socket.id}`,
-    );
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Socket connected');
+    }
 
     // Register User
-    socket.on('register-user', async (userId) => {
+    socket.on('register-user', async () => {
+      const userId = socket.userId;
+
       if (connectedUsers.has(userId)) {
         connectedUsers.delete(userId);
       }
 
       connectedUsers.set(userId, socket.id);
-      console.log(
-        `User online:
-  ${userId}`,
-      );
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('User online');
+      }
+
       await prisma.userPresence.upsert({
         where: {
           userId,
@@ -55,6 +57,7 @@ const initializeSocket = (io) => {
 
         create: {
           userId,
+
           isOnline: true,
 
           socketId: socket.id,
@@ -107,12 +110,11 @@ const initializeSocket = (io) => {
 
         socket.join(conversationId);
 
-        console.log(
-          `✅ User ${socket.userId} joined:
-        ${conversationId}`,
-        );
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Conversation joined');
+        }
       } catch (error) {
-        console.log(error);
+        console.error('Socket error');
 
         socket.emit('join-error', error.message);
       }
@@ -232,10 +234,9 @@ const initializeSocket = (io) => {
 
     // Disconnect
     socket.on('disconnect', async () => {
-      console.log(
-        `❌ User disconnected:
-            ${socket.id}`,
-      );
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Socket disconnected');
+      }
 
       let userId = null;
 

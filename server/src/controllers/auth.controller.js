@@ -1,11 +1,13 @@
-const { validationResult } = require("express-validator");
-const authService = require("../services/auth.service");
+const { validationResult } = require('express-validator');
+const authService = require('../services/auth.service');
+
 const {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
-} = require("../utils/jwt");
-const prisma = require("../config/db");
+} = require('../utils/jwt');
+
+const prisma = require('../config/db');
 
 const refreshAccessToken = async (req, res) => {
   try {
@@ -14,7 +16,7 @@ const refreshAccessToken = async (req, res) => {
     if (!refreshToken) {
       return res.status(401).json({
         success: false,
-        message: "Refresh token missing",
+        message: 'Refresh token missing',
       });
     }
 
@@ -29,7 +31,7 @@ const refreshAccessToken = async (req, res) => {
     if (!tokenExists) {
       return res.status(401).json({
         success: false,
-        message: "Invalid refresh token",
+        message: 'Invalid refresh token',
       });
     }
 
@@ -44,7 +46,7 @@ const refreshAccessToken = async (req, res) => {
   } catch (error) {
     return res.status(401).json({
       success: false,
-      message: "Unauthorized",
+      message: 'Unauthorized',
     });
   }
 };
@@ -69,8 +71,8 @@ const register = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "User registered successfully",
-      token,
+      message: 'User registered successfully',
+      accessToken: token,
       user,
     });
   } catch (error) {
@@ -103,15 +105,15 @@ const login = async (req, res) => {
       },
     });
 
-    res.cookie("refreshToken", refreshToken, {
+    res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: false,
-      sameSite: "strict",
+      sameSite: 'strict',
     });
 
     return res.status(200).json({
       success: true,
-      message: "Login successful",
+      message: 'Login successful',
       accessToken,
       user,
     });
@@ -147,11 +149,11 @@ const logout = async (req, res) => {
       },
     });
 
-    res.clearCookie("refreshToken");
+    res.clearCookie('refreshToken');
 
     return res.status(200).json({
       success: true,
-      message: "Logout successful",
+      message: 'Logout successful',
     });
   } catch (error) {
     return res.status(500).json({

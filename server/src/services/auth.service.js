@@ -4,53 +4,61 @@ const bcrypt = require('bcrypt');
 const registerUser = async (data) => {
   const existingUser = await prisma.user.findUnique({
     where: {
-      email: data.email
-    }
+      email: data.email,
+    },
   });
 
   if (existingUser) {
     throw new Error('User already exists');
   }
 
-  const hashedPassword = await bcrypt.hash(
-    data.password,
-    10
-  );
+  const hashedPassword = await bcrypt.hash(data.password, 10);
 
   const user = await prisma.user.create({
     data: {
       fullName: data.fullName,
       email: data.email,
-      password: hashedPassword
-    }
+      password: hashedPassword,
+    },
   });
 
-  return user;
+  return {
+    id: user.id,
+    fullName: user.fullName,
+    email: user.email,
+    profilePic: user.profilePic,
+    bio: user.bio,
+    role: user.role,
+    isVerified: user.isVerified,
+  };
 };
 
 const loginUser = async (data) => {
-  const user =
-    await prisma.user.findUnique({
-      where: {
-        email: data.email
-      }
-    });
+  const user = await prisma.user.findUnique({
+    where: {
+      email: data.email,
+    },
+  });
 
   if (!user) {
     throw new Error('User not found');
   }
 
-  const isPasswordValid =
-    await bcrypt.compare(
-      data.password,
-      user.password
-    );
+  const isPasswordValid = await bcrypt.compare(data.password, user.password);
 
   if (!isPasswordValid) {
     throw new Error('Invalid password');
   }
 
-  return user;
+  return {
+    id: user.id,
+    fullName: user.fullName,
+    email: user.email,
+    profilePic: user.profilePic,
+    bio: user.bio,
+    role: user.role,
+    isVerified: user.isVerified,
+  };
 };
 
 module.exports = {

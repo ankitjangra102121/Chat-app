@@ -27,9 +27,6 @@ function Register() {
       const { data } = await api.post("/auth/register", formData);
 
       localStorage.setItem("token", data.accessToken);
-
-      localStorage.setItem("refreshToken", data.refreshToken);
-
       localStorage.setItem("user", JSON.stringify(data.user));
 
       toast.success("Account Created 🚀");
