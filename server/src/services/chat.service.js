@@ -2,6 +2,15 @@ const prisma = require('../config/db');
 
 const MESSAGE_TYPES = ['TEXT', 'IMAGE', 'VIDEO', 'FILE', 'AUDIO'];
 const MAX_MESSAGE_LENGTH = 2000;
+const MIME_TO_MESSAGE_TYPE = { image: 'IMAGE', video: 'VIDEO', audio: 'AUDIO' };
+
+const getMessageTypeFromMime = (mimetype) => {
+  if (!mimetype) {
+    throw new Error('Invalid file type');
+  }
+  const mainType = mimetype.split('/')[0].toLowerCase();
+  return MIME_TO_MESSAGE_TYPE[mainType] || 'FILE';
+};
 
 const validateMessageInput = (conversationId, content, type) => {
   if (!conversationId || typeof conversationId !== 'string') {
@@ -383,6 +392,14 @@ const getUserPresence = async (userId) => {
 };
 
 const uploadMedia = async (senderId, conversationId, file) => {
+  if (!conversationId) {
+    throw new Error('Conversation ID is required');
+  }
+
+  if (!file) {
+    throw new Error('No file uploaded');
+  }
+
   const member = await prisma.conversationMember.findFirst({
     where: {
       userId: senderId,
@@ -395,16 +412,30 @@ const uploadMedia = async (senderId, conversationId, file) => {
     throw new Error('Unauthorized');
   }
 
+  const messageType = getMessageTypeFromMime(file.mimetype);
+
   const message = await prisma.message.create({
     data: {
       senderId,
+
       conversationId,
 
-      type: file.mimetype.split('/')[0].toUpperCase(),
+      type: messageType,
+    },
+
+    include: {
+      sender: {
+        select: {
+          id: true,
+          fullName: true,
+        },
+      },
+
+      attachments: true,
     },
   });
 
-  await prisma.attachment.create({
+  const attachment = await prisma.attachment.create({
     data: {
       messageId: message.id,
 
@@ -416,7 +447,11 @@ const uploadMedia = async (senderId, conversationId, file) => {
     },
   });
 
-  return message;
+  return {
+    ...message,
+
+    attachments: [attachment],
+  };
 };
 
 const updatePresence = async (userId, isOnline, socketId = null) => {

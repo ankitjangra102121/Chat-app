@@ -16,36 +16,84 @@ const refreshAccessToken = async (req, res) => {
     if (!refreshToken) {
       return res.status(401).json({
         success: false,
+
         message: 'Refresh token missing',
       });
     }
 
-    const decoded = verifyRefreshToken(refreshToken);
-
-    const tokenExists = await prisma.refreshToken.findUnique({
+    const tokenRecord = await prisma.refreshToken.findUnique({
       where: {
         token: refreshToken,
       },
     });
 
-    if (!tokenExists) {
+    if (!tokenRecord) {
       return res.status(401).json({
         success: false,
+
         message: 'Invalid refresh token',
       });
     }
+
+    // Delete expired token
+    if (new Date() > tokenRecord.expiresAt) {
+      await prisma.refreshToken.deleteMany({
+        where: {
+          token: refreshToken,
+        },
+      });
+
+      return res.status(401).json({
+        success: false,
+
+        message: 'Refresh token expired',
+      });
+    }
+
+    const decoded = verifyRefreshToken(refreshToken);
+
+    // Rotate refresh token
+    const newRefreshToken = generateRefreshToken({
+      id: decoded.id,
+    });
+
+    await prisma.refreshToken.deleteMany({
+      where: {
+        token: refreshToken,
+      },
+    });
+
+    await prisma.refreshToken.create({
+      data: {
+        token: newRefreshToken,
+
+        userId: decoded.id,
+
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
 
     const accessToken = generateAccessToken({
       id: decoded.id,
     });
 
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true,
+
+      secure: process.env.NODE_ENV === 'production',
+
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+    });
+
     return res.status(200).json({
       success: true,
+
       accessToken,
     });
   } catch (error) {
     return res.status(401).json({
       success: false,
+
       message: 'Unauthorized',
     });
   }
@@ -64,15 +112,41 @@ const register = async (req, res) => {
 
     const user = await authService.registerUser(req.body);
 
-    const token = generateAccessToken({
+    const accessToken = generateAccessToken({
       id: user.id,
       email: user.email,
+      role: user.role,
+    });
+
+    const refreshToken = generateRefreshToken({
+      id: user.id,
+    });
+
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+
+        userId: user.id,
+
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+
+      secure: process.env.NODE_ENV === 'production',
+
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
     });
 
     return res.status(201).json({
       success: true,
+
       message: 'User registered successfully',
-      accessToken: token,
+
+      accessToken,
+
       user,
     });
   } catch (error) {
@@ -107,8 +181,8 @@ const login = async (req, res) => {
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: false,
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
     });
 
     return res.status(200).json({

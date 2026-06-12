@@ -23,9 +23,38 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      clearAuthStorage();
+
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest?._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const response = await axios.post(
+          `${
+            import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+          }/auth/refresh-token`,
+          {},
+          {
+            withCredentials: true,
+          },
+        );
+
+        const newToken = response.data.accessToken;
+
+        localStorage.setItem("token", newToken);
+
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+        return api(originalRequest);
+      } catch (refreshError) {
+        clearAuthStorage();
+
+        window.location.href = "/login";
+
+        return Promise.reject(refreshError);
+      }
     }
 
     return Promise.reject(error);
