@@ -20,7 +20,7 @@ const initializeSocket = (io) => {
       socket.userId = decoded.id;
 
       next();
-    } catch (error) {
+    } catch {
       next(new Error('Unauthorized'));
     }
   });
@@ -115,10 +115,8 @@ const initializeSocket = (io) => {
         if (process.env.NODE_ENV === 'development') {
           console.log('Conversation joined');
         }
-      } catch (error) {
-        console.error('Socket error');
-
-        socket.emit('join-error', error.message);
+      } catch {
+        socket.emit('join-error', 'Failed to join conversation');
       }
     });
 
@@ -186,7 +184,6 @@ const initializeSocket = (io) => {
       });
     });
 
-    // Disconnect
     socket.on('disconnect', async () => {
       if (process.env.NODE_ENV === 'development') {
         console.log('Socket disconnected');

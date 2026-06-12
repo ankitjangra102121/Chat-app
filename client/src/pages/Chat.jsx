@@ -33,8 +33,7 @@ function Chat() {
   const [message, setMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-  const [error, setError] = useState("");
+  // const [loadingMessages, setLoadingMessages] = useState(false);
   const bottomRef = useRef(null);
 
   // Load conversations
@@ -236,7 +235,7 @@ function Chat() {
           <div className="flex-1 overflow-y-auto">
             {loadingUsers ? (
               <div className="flex items-center justify-center py-10">
-                <div className="text-sm text-slate-400">
+                <div className="text-sm text-slate-500">
                   Loading conversations...
                 </div>
               </div>
@@ -266,17 +265,17 @@ function Chat() {
                         {targetUser.fullName?.charAt(0)}{" "}
                       </div>{" "}
                       <div
-                        className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-900 ${onlineUsers.includes(targetUser.id) ? "bg-green-500" : "bg-slate-500"}`}
+                        className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${onlineUsers.includes(targetUser.id) ? "bg-green-500" : "bg-slate-500"}`}
                       />{" "}
                     </div>{" "}
                     {/* User Info */}{" "}
                     <div className="flex-1 overflow-hidden">
                       {" "}
-                      <h2 className="text-white font-semibold truncate">
+                      <h2 className="font-semibold text-[15px] text-slate-900 truncate">
                         {" "}
                         {targetUser.fullName}{" "}
                       </h2>{" "}
-                      <p className="text-slate-400 text-sm truncate">
+                      <p className="text-slate-500 text-sm truncate">
                         {" "}
                         {targetUser.email}{" "}
                       </p>{" "}
@@ -315,7 +314,7 @@ function Chat() {
                     className={`text-xs font-medium ${
                       onlineUsers.includes(selectedUser?.id)
                         ? "text-emerald-500"
-                        : "text-slate-400"
+                        : "text-slate-500"
                     }`}
                   >
                     {onlineUsers.includes(selectedUser?.id)
@@ -326,11 +325,11 @@ function Chat() {
               </div>
             ) : (
               <div>
-                <h2 className="text-xl font-semibold text-white">
+                <h2 className="text-xl font-semibold text-slate-900">
                   Select a Chat
                 </h2>
 
-                <p className="text-slate-400 text-sm">
+                <p className="text-slate-500 text-sm">
                   Choose someone to start messaging
                 </p>
               </div>
@@ -340,15 +339,15 @@ function Chat() {
           {/* Messages */}
           {!selectedConversation ? (
             <div className="flex-1 rounded-[32px] border border-white/50 bg-white/75 backdrop-blur-2xl shadow-[0_10px_40px_rgba(15,23,42,0.08)] overflow-hidden flex flex-col relative">
-              <div className="h-32 w-32 rounded-full bg-slate-800 flex items-center justify-center text-6xl shadow-2xl mb-8">
+              <div className="h-32 w-32 rounded-[32px] bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center text-6xl shadow-inner mb-8">
                 💬
               </div>
 
-              <h1 className="text-4xl font-bold text-white">
+              <h1 className="text-4xl font-semibold tracking-tight text-slate-900">
                 Welcome to ChatApp
               </h1>
 
-              <p className="text-slate-400 text-lg mt-4 max-w-lg leading-relaxed">
+              <p className="text-slate-500 text-lg mt-4 max-w-lg leading-relaxed">
                 Select a user from the sidebar and start a real-time secure
                 conversation instantly.
               </p>
@@ -363,7 +362,7 @@ function Chat() {
                       💬
                     </div>
 
-                    <h2 className="text-2xl font-bold text-white">
+                    <h2 className="text-[17px] font-semibold tracking-tight text-slate-900">
                       No Messages Yet
                     </h2>
 
