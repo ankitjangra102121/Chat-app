@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 
 import { useSocket } from "../hooks/useSocket";
@@ -22,32 +22,34 @@ const getStoredUser = () => {
 
 function Chat() {
   const socket = useSocket();
-
   const user = getStoredUser();
   const userId = user?.id;
 
   const [users, setUsers] = useState([]);
-
   const [selectedConversation, setSelectedConversation] = useState(null);
-
   const [selectedUser, setSelectedUser] = useState(null);
-
   const [messages, setMessages] = useState([]);
-
   const [onlineUsers, setOnlineUsers] = useState([]);
-
   const [message, setMessage] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [error, setError] = useState("");
+  const bottomRef = useRef(null);
 
   // Load conversations
-
   useEffect(() => {
     const fetchUsers = async () => {
       try {
+        setLoadingUsers(true);
+
         const data = await getUsers();
 
         setUsers(data.users);
       } catch (error) {
-        console.log(error);
+        setError("Failed to load users");
+      } finally {
+        setLoadingUsers(false);
       }
     };
 
@@ -109,7 +111,16 @@ function Chat() {
       if (newMessage.conversationId !== selectedConversation?.id) {
         return;
       }
-      setMessages((prev) => [...prev, newMessage]);
+
+      setMessages((prev) => {
+        const exists = prev.some((msg) => msg.id === newMessage.id);
+
+        if (exists) {
+          return prev;
+        }
+
+        return [...prev, newMessage];
+      });
     };
 
     socket.on("receive-message", handleReceive);
@@ -117,7 +128,11 @@ function Chat() {
     return () => {
       socket.off("receive-message", handleReceive);
     };
-  }, [socket]);
+  }, [socket, selectedConversation]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const openChat = async (targetUser) => {
     console.log("Clicked user:", targetUser);
@@ -135,9 +150,10 @@ function Chat() {
 
       socket.emit("join-conversation", conversation.id);
 
+      setLoadingMessages(true);
       const result = await getMessages(conversation.id);
-
-      setMessages(result.messages);
+      setMessages(result.messages || []);
+      setLoadingMessages(false);
     } catch (error) {
       console.log(error);
     }
@@ -177,7 +193,16 @@ function Chat() {
         <div className="p-5 border-b border-slate-800 bg-slate-950 sticky top-0 z-10">
           {" "}
           <div className="flex items-center justify-between">
-            {" "}
+            <button
+              onClick={() => {
+                localStorage.clear();
+
+                window.location.href = "/login";
+              }}
+              className="mt-4 w-full bg-red-600 hover:bg-red-700 transition py-2 rounded-xl text-white text-sm"
+            >
+              Logout
+            </button>{" "}
             <div>
               {" "}
               <h1 className="text-2xl font-bold text-white"> Messages </h1>{" "}
@@ -197,46 +222,58 @@ function Chat() {
             <input
               type="text"
               placeholder="Search users..."
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all duration-200"
             />{" "}
           </div>{" "}
         </div>{" "}
         {/* User List */}{" "}
         <div className="flex-1 overflow-y-auto">
-          {" "}
-          {users.map((targetUser) => (
-            <div
-              key={targetUser.id}
-              onClick={() => openChat(targetUser)}
-              className={`flex items-center gap-4 p-4 border-b border-slate-800 cursor-pointer transition-all duration-200 ${selectedConversation?.members?.some((member) => member.userId === targetUser.id) ? "bg-slate-800" : "hover:bg-slate-800/70 hover:scale-[1.01]"}`}
-            >
+          {loadingUsers ? (
+            <div className="p-6 text-slate-400 text-center">
               {" "}
-              {/* Avatar */}{" "}
-              <div className="relative">
-                {" "}
-                <div className="h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
-                  {" "}
-                  {targetUser.fullName?.charAt(0)}{" "}
-                </div>{" "}
-                <div
-                  className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-900 ${onlineUsers.includes(targetUser.id) ? "bg-green-500" : "bg-slate-500"}`}
-                />{" "}
-              </div>{" "}
-              {/* User Info */}{" "}
-              <div className="flex-1 overflow-hidden">
-                {" "}
-                <h2 className="text-white font-semibold truncate">
-                  {" "}
-                  {targetUser.fullName}{" "}
-                </h2>{" "}
-                <p className="text-slate-400 text-sm truncate">
-                  {" "}
-                  {targetUser.email}{" "}
-                </p>{" "}
-              </div>{" "}
+              Loading users...{" "}
             </div>
-          ))}{" "}
-        </div>{" "}
+          ) : (
+            users
+              .filter((u) =>
+                u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()),
+              )
+              .map((targetUser) => (
+                <div
+                  key={targetUser.id}
+                  onClick={() => openChat(targetUser)}
+                  className={`flex items-center gap-4 p-4 border-b border-slate-800 cursor-pointer transition-all duration-200 ${selectedConversation?.members?.some((member) => member.userId === targetUser.id) ? "bg-slate-800" : "hover:bg-slate-800/70 hover:scale-[1.01]"}`}
+                >
+                  {" "}
+                  {/* Avatar */}{" "}
+                  <div className="relative">
+                    {" "}
+                    <div className="h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
+                      {" "}
+                      {targetUser.fullName?.charAt(0)}{" "}
+                    </div>{" "}
+                    <div
+                      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-900 ${onlineUsers.includes(targetUser.id) ? "bg-green-500" : "bg-slate-500"}`}
+                    />{" "}
+                  </div>{" "}
+                  {/* User Info */}{" "}
+                  <div className="flex-1 overflow-hidden">
+                    {" "}
+                    <h2 className="text-white font-semibold truncate">
+                      {" "}
+                      {targetUser.fullName}{" "}
+                    </h2>{" "}
+                    <p className="text-slate-400 text-sm truncate">
+                      {" "}
+                      {targetUser.email}{" "}
+                    </p>{" "}
+                  </div>{" "}
+                </div>
+              ))
+          )}{" "}
+        </div>
       </div>
       {/* Chat Area */}
       <div className="flex-1 flex flex-col bg-slate-950 relative">
@@ -259,7 +296,17 @@ function Chat() {
                   {selectedUser?.fullName}
                 </h2>
 
-                <p className="text-sm text-green-400">Online</p>
+                <p
+                  className={`text-sm ${
+                    onlineUsers.includes(selectedUser?.id)
+                      ? "text-green-400"
+                      : "text-slate-400"
+                  }`}
+                >
+                  {onlineUsers.includes(selectedUser?.id)
+                    ? "Online"
+                    : "Offline"}
+                </p>
               </div>
             </div>
           ) : (
@@ -316,7 +363,7 @@ function Chat() {
 
                 return (
                   <div
-                    key={index}
+                    key={msg.id || index}
                     className={`flex animate-fadeIn ${
                       isMine ? "justify-end" : "justify-start"
                     }`}
@@ -344,6 +391,7 @@ function Chat() {
                   </div>
                 );
               })}
+              <div ref={bottomRef} />
             </div>
           </>
         )}
