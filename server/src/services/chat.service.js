@@ -56,20 +56,16 @@ const createConversation = async (userId, memberIds, type, name = null) => {
   if (users.length !== uniqueMembers.length) {
     throw new Error('Invalid users');
   }
+  let conversationKey = null;
 
-  // Prevent duplicate private chat
   if (type === 'PRIVATE' && uniqueMembers.length === 1) {
-    const existingConversation = await prisma.conversation.findFirst({
-      where: {
-        type: 'PRIVATE',
+    const secondUserId = uniqueMembers[0];
 
-        members: {
-          every: {
-            userId: {
-              in: [userId, uniqueMembers[0]],
-            },
-          },
-        },
+    conversationKey = [userId, secondUserId].sort().join(':');
+
+    const existingConversation = await prisma.conversation.findUnique({
+      where: {
+        conversationKey,
       },
 
       include: {
@@ -92,11 +88,11 @@ const createConversation = async (userId, memberIds, type, name = null) => {
       return existingConversation;
     }
   }
-
   const conversation = await prisma.conversation.create({
     data: {
       type,
       name,
+      conversationKey,
 
       members: {
         create: [

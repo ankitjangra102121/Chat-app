@@ -66,7 +66,9 @@ const initializeSocket = (io) => {
       io.emit('online-users', Array.from(connectedUsers.keys()));
     });
 
-    socket.on('reconnect-user', async (userId) => {
+    socket.on('reconnect-user', async () => {
+      const userId = socket.userId;
+
       connectedUsers.set(userId, socket.id);
 
       await prisma.userPresence.updateMany({
@@ -172,15 +174,39 @@ const initializeSocket = (io) => {
       }
     });
 
-    socket.on('typing', ({ conversationId, userId }) => {
+    socket.on('typing', async ({ conversationId }) => {
+      const member = await prisma.conversationMember.findFirst({
+        where: {
+          userId: socket.userId,
+
+          conversationId,
+        },
+      });
+
+      if (!member) {
+        return;
+      }
+
       socket.to(conversationId).emit('user-typing', {
-        userId,
+        userId: socket.userId,
       });
     });
 
-    socket.on('stop-typing', ({ conversationId, userId }) => {
+    socket.on('stop-typing', async ({ conversationId }) => {
+      const member = await prisma.conversationMember.findFirst({
+        where: {
+          userId: socket.userId,
+
+          conversationId,
+        },
+      });
+
+      if (!member) {
+        return;
+      }
+
       socket.to(conversationId).emit('user-stop-typing', {
-        userId,
+        userId: socket.userId,
       });
     });
 

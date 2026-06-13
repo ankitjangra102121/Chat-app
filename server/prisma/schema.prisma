@@ -63,6 +63,8 @@ model Conversation {
 
   type ConversationType
 
+  conversationKey String? @unique
+
   groupImage String?
 
   members ConversationMember[]
