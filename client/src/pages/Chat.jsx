@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+
 import { Navigate } from "react-router-dom";
 
 import { useSocket } from "../hooks/useSocket";
@@ -7,8 +8,8 @@ import {
   createPrivateConversation,
   getMessages,
 } from "../services/chat.service";
-import { clearAuthStorage } from "../services/authStorage";
 
+import { clearAuthStorage } from "../services/authStorage";
 import { getUsers } from "../services/user.service";
 
 const getStoredUser = () => {
@@ -22,23 +23,35 @@ const getStoredUser = () => {
 };
 
 function Chat() {
+  // State
   const socket = useSocket();
   const user = getStoredUser();
   const userId = user?.id;
 
   const [users, setUsers] = useState([]);
-  const [selectedConversation, setSelectedConversation] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [onlineUsers, setOnlineUsers] = useState([]);
-  const [message, setMessage] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loadingUsers, setLoadingUsers] = useState(true);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-  const [error, setError] = useState("");
-  const bottomRef = useRef(null);
 
-  // Load conversations
+  const [selectedConversation, setSelectedConversation] = useState(null);
+
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  const [messages, setMessages] = useState([]);
+
+  const [onlineUsers, setOnlineUsers] = useState([]);
+
+  const [message, setMessage] = useState("");
+
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [loadingUsers, setLoadingUsers] = useState(true);
+
+  const [loadingMessages, setLoadingMessages] = useState(false);
+
+  const [error, setError] = useState("");
+
+  const bottomRef = useRef(null);
+  const isUserOnline = onlineUsers.includes(selectedUser?.id);
+
+  // Effects
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -57,15 +70,12 @@ function Chat() {
     fetchUsers();
   }, []);
 
-  // Socket connection
   useEffect(() => {
     if (!userId) return;
 
     socket.connect();
 
     socket.on("connect", () => {
-      console.log("Socket Connected:", socket.id);
-
       socket.emit("register-user");
     });
 
@@ -74,7 +84,6 @@ function Chat() {
     };
   }, [socket, userId]);
 
-  // Join selected conversation
   useEffect(() => {
     if (!selectedConversation) return;
 
@@ -99,7 +108,6 @@ function Chat() {
     fetchMessages();
   }, [selectedConversation, socket]);
 
-  // Online users
   useEffect(() => {
     const handleOnlineUsers = (users) => {
       setOnlineUsers(users);
@@ -112,7 +120,6 @@ function Chat() {
     };
   }, [socket]);
 
-  // Receive real-time messages
   useEffect(() => {
     const handleReceive = (newMessage) => {
       if (newMessage.conversationId !== selectedConversation?.id) {
@@ -141,12 +148,16 @@ function Chat() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Handlers
   const openChat = async (targetUser) => {
-    console.log("Clicked user:", targetUser);
     try {
       if (selectedConversation) {
         socket.emit("leave-conversation", selectedConversation.id);
       }
+
+      setLoadingMessages(true);
+      setError("");
+
       const data = await createPrivateConversation(targetUser.id);
 
       const conversation = data.conversation;
@@ -157,25 +168,16 @@ function Chat() {
 
       socket.emit("join-conversation", conversation.id);
 
-      try {
-        setLoadingMessages(true);
+      const result = await getMessages(conversation.id);
 
-        setError("");
-
-        const result = await getMessages(conversation.id);
-
-        setMessages(result.messages || []);
-      } catch {
-        setError("Unable to load conversation.");
-      } finally {
-        setLoadingMessages(false);
-      }
-    } catch (error) {
-      console.log(error);
+      setMessages(result.messages || []);
+    } catch {
+      setError("Unable to open chat.");
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
-  // Send message
   const handleSend = async () => {
     if (!message.trim() || !selectedConversation) {
       return;
@@ -320,9 +322,7 @@ function Chat() {
 
                   <div
                     className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-[3px] border-white ${
-                      onlineUsers.includes(selectedUser?.id)
-                        ? "bg-emerald-500"
-                        : "bg-slate-300"
+                      isUserOnline ? "bg-emerald-500" : "bg-slate-300"
                     }`}
                   />
                 </div>
@@ -334,14 +334,10 @@ function Chat() {
 
                   <p
                     className={`text-xs font-medium ${
-                      onlineUsers.includes(selectedUser?.id)
-                        ? "text-emerald-500"
-                        : "text-slate-500"
+                      isUserOnline ? "text-emerald-500" : "text-slate-500"
                     }`}
                   >
-                    {onlineUsers.includes(selectedUser?.id)
-                      ? "Online"
-                      : "Offline"}
+                    {isUserOnline ? "Online" : "Offline"}
                   </p>
                 </div>
               </div>

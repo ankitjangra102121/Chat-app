@@ -90,7 +90,7 @@ function Register() {
         </form>
 
         <p className="text-center text-slate-500 mt-6">
-          Already have an account?{" "}
+          Don’t have an account?{" "}
           <Link
             to="/login"
             className="text-indigo-600 hover:text-indigo-700 font-medium"
